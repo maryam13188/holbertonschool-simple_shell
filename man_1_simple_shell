@@ -1,0 +1,25 @@
+.TH HSH 1 "December 2025" "Simple Shell 1.0" "User Commands"
+.SH NAME
+hsh \- simple UNIX shell
+.SH SYNOPSIS
+.B hsh
+.SH DESCRIPTION
+.B hsh
+is a simple UNIX command interpreter.
+.PP
+It reads commands from standard input and executes them.
+.SH BUILT\-IN COMMANDS
+.TP
+.B exit
+Exit the shell.
+.TP
+.B env
+Print environment variables.
+.SH EXAMPLES
+$ ./hsh
+($) ls
+($) exit
+.SH AUTHORS
+Written by Holberton School students.
+.SH SEE ALSO
+.BR sh (1)
