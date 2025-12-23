@@ -6,34 +6,42 @@
  */
 int main(void)
 {
-	char *line;
-	char **args;
+    char *line;
+    char **args;
 
-	while (1)
-	{
-		if (isatty(STDIN_FILENO))
-			printf("($) ");
+    while (1)
+    {
+        if (isatty(STDIN_FILENO))
+            printf("($) ");
 
-		line = read_line();
-		if (!line)
-		{
-			if (isatty(STDIN_FILENO))
-				printf("\n");
-			break;
-		}
+        line = read_line();
+        if (!line)
+        {
+            if (isatty(STDIN_FILENO))
+                printf("\n");
+            break;
+        }
 
-		args = split_line(line);
-		if (!args)
-		{
-			free(line);
-			continue;
-		}
+        /* Check if line is only whitespace */
+        if (is_whitespace(line))
+        {
+            free(line);
+            continue;
+        }
 
-		execute(args);
+        args = split_line(line);
+        if (!args || !args[0]) /* No commands */
+        {
+            free(line);
+            free_tokens(args);
+            continue;
+        }
 
-		free(line);
-		free_tokens(args);
-	}
+        execute(args);
 
-	return (0);
+        free(line);
+        free_tokens(args);
+    }
+
+    return (0);
 }

@@ -1,133 +1,169 @@
 #include "shell.h"
 
 /**
- * free_tokens - Frees an array of tokens
- * @tokens: Array of tokens to free
+ * check_command - Check if command exists
+ * @command: Command to check
+ * Return: 1 if exists, 0 if not
  */
-void free_tokens(char **tokens)
+int check_command(char *command)
 {
-	int i = 0;
+    struct stat st;
+    char *path_copy, *dir, *full_path;
+    char *path = getenv("PATH");
 
-	if (!tokens)
-		return;
+    /* Check if command is NULL or empty */
+    if (!command || command[0] == '\0')
+        return (0);
 
-	while (tokens[i])
-	{
-		free(tokens[i]);
-		i++;
-	}
+    /* If command contains '/', check it directly */
+    if (strchr(command, '/') != NULL)
+    {
+        if (stat(command, &st) == 0 && S_ISREG(st.st_mode))
+            return (1);
+        return (0);
+    }
 
-	free(tokens);
+    if (!path)
+        return (0);
+
+    path_copy = _strdup(path);
+    if (!path_copy)
+        return (0);
+
+    dir = strtok(path_copy, ":");
+    while (dir != NULL)
+    {
+        full_path = malloc(strlen(dir) + strlen(command) + 2);
+        if (!full_path)
+        {
+            free(path_copy);
+            return (0);
+        }
+
+        sprintf(full_path, "%s/%s", dir, command);
+        
+        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode))
+        {
+            free(full_path);
+            free(path_copy);
+            return (1);
+        }
+        
+        free(full_path);
+        dir = strtok(NULL, ":");
+    }
+    
+    free(path_copy);
+    return (0);
 }
 
 /**
- * read_line - Reads a line from stdin
- * Return: Line read (must be freed)
+ * find_full_path - Find full path of command
+ * @command: Command to find
+ * Return: Full path or NULL
  */
-char *read_line(void)
+char *find_full_path(char *command)
 {
-	char *line = NULL;
-	size_t len = 0;
-	ssize_t read;
+    struct stat st;
+    char *path_copy, *dir, *full_path;
+    char *path = getenv("PATH");
 
-	read = getline(&line, &len, stdin);
-	if (read == -1)
-	{
-		free(line);
-		return (NULL);
-	}
+    /* Check if command is NULL or empty */
+    if (!command || command[0] == '\0')
+        return (NULL);
 
-	if (line[read - 1] == '\n')
-		line[read - 1] = '\0';
+    /* If command contains '/', return it as is if exists */
+    if (strchr(command, '/') != NULL)
+    {
+        if (stat(command, &st) == 0 && S_ISREG(st.st_mode))
+            return (_strdup(command));
+        return (NULL);
+    }
 
-	return (line);
+    if (!path)
+        return (NULL);
+
+    path_copy = _strdup(path);
+    if (!path_copy)
+        return (NULL);
+
+    dir = strtok(path_copy, ":");
+    while (dir != NULL)
+    {
+        full_path = malloc(strlen(dir) + strlen(command) + 2);
+        if (!full_path)
+        {
+            free(path_copy);
+            return (NULL);
+        }
+
+        sprintf(full_path, "%s/%s", dir, command);
+        
+        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode))
+        {
+            free(path_copy);
+            return (full_path);
+        }
+        
+        free(full_path);
+        dir = strtok(NULL, ":");
+    }
+    
+    free(path_copy);
+    return (NULL);
 }
 
 /**
- * split_line - Splits a line into tokens
- * @line: Line to split
- * Return: Array of tokens
- */
-char **split_line(char *line)
-{
-	int bufsize = BUFFER_SIZE;
-	int position = 0;
-	char **tokens = malloc(bufsize * sizeof(char *));
-	char *token;
-
-	if (!tokens)
-		return (NULL);
-
-	token = strtok(line, TOKEN_DELIM);
-	while (token != NULL)
-	{
-		tokens[position] = _strdup(token);
-		if (!tokens[position])
-		{
-			free_tokens(tokens);
-			return (NULL);
-		}
-		position++;
-
-		if (position >= bufsize)
-		{
-			bufsize += BUFFER_SIZE;
-			tokens = realloc(tokens, bufsize * sizeof(char *));
-			if (!tokens)
-			{
-				free_tokens(tokens);
-				return (NULL);
-			}
-		}
-
-		token = strtok(NULL, TOKEN_DELIM);
-	}
-
-	tokens[position] = NULL;
-	return (tokens);
-}
-
-/**
- * execute - Executes a command
- * @args: Array of arguments
+ * execute - Execute a command
+ * @args: Array of command and arguments
  * Return: 1 to continue, 0 to exit
  */
 int execute(char **args)
 {
-	pid_t pid;
-	int status;
-	struct stat st;
+    pid_t pid;
+    int status;
+    char *full_path;
 
-	if (stat(args[0], &st) == -1)
-	{
-		fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
-		return (1);
-	}
+    /* 🔴 **أهم تعديل: تحقق من NULL أولاً** */
+    if (!args || !args[0] || args[0][0] == '\0')
+        return (1);
 
-	if (!(st.st_mode & S_IXUSR))
-	{
-		fprintf(stderr, "./hsh: 1: %s: Permission denied\n", args[0]);
-		return (1);
-	}
+    /* Check if command exists before forking */
+    if (!check_command(args[0]))
+    {
+        fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+        return (1);
+    }
 
-	pid = fork();
-	if (pid == 0)
-	{
-		if (execve(args[0], args, NULL) == -1)
-		{
-			perror("execve");
-			exit(EXIT_FAILURE);
-		}
-	}
-	else if (pid < 0)
-	{
-		perror("fork");
-		return (1);
-	}
-	else
-	{
-		waitpid(pid, &status, 0);
-	}
+    /* Find the full path */
+    full_path = find_full_path(args[0]);
+    if (!full_path)
+    {
+        fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+        return (1);
+    }
 
-	return (1);
+    pid = fork();
+    if (pid == 0) /* Child process */
+    {
+        if (execve(full_path, args, environ) == -1)
+        {
+            fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+            free(full_path);
+            exit(EXIT_FAILURE);
+        }
+    }
+    else if (pid < 0) /* Fork error */
+    {
+        perror("fork");
+        free(full_path);
+        return (1);
+    }
+    else /* Parent process */
+    {
+        waitpid(pid, &status, 0);
+        free(full_path);
+    }
+
+    return (1);
 }
