@@ -20,6 +20,9 @@ int execute(char **args);
 int _strlen(char *s);
 char *_strdup(char *str);
 
+/* PATH Functions */
+char *get_path_from_environ(void);
+
 /* Environment */
 extern char **environ;
 

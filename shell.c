@@ -1,6 +1,29 @@
 #include "shell.h"
 
 /**
+ * get_path_from_environ - Get PATH from environ directly
+ * Return: PATH string or NULL
+ */
+char *get_path_from_environ(void)
+{
+    extern char **environ;
+    int i = 0;
+    char *path_prefix = "PATH=";
+    int prefix_len = 5;
+
+    if (!environ)
+        return (NULL);
+
+    while (environ[i])
+    {
+        if (strncmp(environ[i], path_prefix, prefix_len) == 0)
+            return (environ[i] + prefix_len);
+        i++;
+    }
+    return (NULL);
+}
+
+/**
  * check_command - Check if command exists
  * @command: Command to check
  * Return: 1 if exists, 0 if not
@@ -9,7 +32,7 @@ int check_command(char *command)
 {
     struct stat st;
     char *path_copy, *dir, *full_path;
-    char *path = getenv("PATH");
+    char *path = get_path_from_environ();  /* ⬅️ بدون getenv */
 
     /* Check if command is NULL or empty */
     if (!command || command[0] == '\0')
@@ -66,7 +89,7 @@ char *find_full_path(char *command)
 {
     struct stat st;
     char *path_copy, *dir, *full_path;
-    char *path = getenv("PATH");
+    char *path = get_path_from_environ();  /* ⬅️ بدون getenv */
 
     /* Check if command is NULL or empty */
     if (!command || command[0] == '\0')
@@ -124,7 +147,7 @@ int execute(char **args)
     int status;
     char *full_path;
 
-    /* 🔴 **أهم تعديل: تحقق من NULL أولاً** */
+    /* تحقق من NULL أولاً */
     if (!args || !args[0] || args[0][0] == '\0')
         return (1);
 
