@@ -160,11 +160,3 @@ Maryam
 .BR fork (2),
 .BR wait (2),
 .BR environ (7)
-.SH HISTORY
-.B simple_shell
-was created as a project for Holberton School to demonstrate
-understanding of process creation, system calls, and shell basics.
-.SH VERSION
-This man page documents
-.B simple_shell
-version 1.0.
