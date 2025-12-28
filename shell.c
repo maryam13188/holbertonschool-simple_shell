@@ -1,35 +1,29 @@
 #include "shell.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-/**
-	* shell_loop - Main shell loop
-	*/
 void shell_loop(void)
 {
-char *line;
-char **args;
-int status = 1;
-do
+char *line = NULL;
+char **args = NULL;
+while (1)
 {
-write(1, "$ ", 2);
+/* Print prompt ONLY if interactive */
+if (isatty(STDIN_FILENO))
+write(STDOUT_FILENO, "$ ", 2);
 line = read_line();
-if (!line)  /* EOF */
-{
-write(1, "\n", 1);
+if (!line) /* EOF (Ctrl+D) */
 break;
-}
 args = split_line(line);
 free(line);
-if (!args)
+if (!args || !args[0])
+{
+free_tokens(args);
 continue;
-/* Exit command */
+}
 if (_strcmp(args[0], "exit") == 0)
 {
 free_tokens(args);
 break;
 }
-status = execute(args);
+execute(args);
 free_tokens(args);
-} while (status);
+}
 }
