@@ -1,63 +1,68 @@
 #include "shell.h"
-/**
-	* is_whitespace - Check if string contains only whitespace
-	* @str: String to check
-	* Return: 1 if only whitespace, 0 otherwise
-	*/
-int is_whitespace(const char *str)
-{
-int i;
-if (!str)
-return (1);
-for (i = 0; str[i]; i++)
-{
-if (str[i] != ' ' && str[i] != '\t' && str[i] != '\n' && str[i] != '\r')
-return (0);
-}
-return (1);
-}
-/**
-	* _strlen - Returns length of string
-	* @s: String
-	* Return: Length
-	*/
-int _strlen(char *s)
-{
-int len = 0;
-if (!s)
-return (0);
-while (s[len])
-len++;
-return (len);
-}
-/**
-	* _strdup - Duplicates a string
-	* @str: String to duplicate
-	* Return: Duplicated string
-	*/
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+/* ---------------- String & Utils ---------------- */
 char *_strdup(char *str)
 {
 char *dup;
-int i, len;
-if (!str)
-return (NULL);
-len = _strlen(str);
-dup = malloc(len + 1);
-if (!dup)
-return (NULL);
-for (i = 0; i <= len; i++)
-dup[i] = str[i];
-return (dup);
+if (!str) return NULL;
+dup = malloc(strlen(str) + 1);
+if (!dup) return NULL;
+strcpy(dup, str);
+return dup;
 }
-/**
-	* free_tokens - Frees an array of tokens
-	* @tokens: Array of tokens to free
-	*/
+int _strcmp(char *s1, char *s2)
+{
+while (*s1 && *s2 && *s1 == *s2)
+s1++, s2++;
+return (*s1 - *s2);
+}
+void print_error(char *cmd)
+{
+if (!cmd) return;
+write(2, cmd, strlen(cmd));
+write(2, ": not found\n", 12);
+}
+/* ---------------- Input / Tokenization ---------------- */
+char *read_line(void)
+{
+char *line = NULL;
+size_t bufsize = 0;
+if (getline(&line, &bufsize, stdin) == -1)
+{
+free(line);
+return NULL;
+}
+return line;
+}
+char **split_line(char *line)
+{
+int bufsize = 64, position = 0;
+char **tokens = malloc(bufsize * sizeof(char *));
+char *token;
+if (!tokens) return NULL;
+token = strtok(line, " \t\r\n");
+while (token)
+{
+tokens[position++] = _strdup(token);
+if (position >= bufsize)
+{
+bufsize += 64;
+tokens = realloc(tokens, bufsize * sizeof(char *));
+if (!tokens) return NULL;
+}
+token = strtok(NULL, " \t\r\n");
+}
+tokens[position] = NULL;
+return tokens;
+}
 void free_tokens(char **tokens)
 {
 int i = 0;
-if (!tokens)
-return;
+if (!tokens) return;
 while (tokens[i])
 {
 free(tokens[i]);
@@ -65,66 +70,122 @@ i++;
 }
 free(tokens);
 }
-/**
-	* read_line - Reads a line from stdin
-	* Return: Line read (must be freed) or NULL if EOF
-	*/
-char *read_line(void)
+/* ---------------- PATH & Execution ---------------- */
+char *get_path_from_environ(void)
 {
-char *line = NULL;
-size_t len = 0;
-ssize_t read;
-read = getline(&line, &len, stdin);
-if (read == -1)
+extern char **environ;
+int i = 0;
+char *prefix = "PATH=";
+if (!environ) return NULL;
+while (environ[i])
 {
-free(line);
-return (NULL);
+if (strncmp(environ[i], prefix, 5) == 0)
+return (environ[i] + 5);
+i++;
 }
-if (read > 0 && line[read - 1] == '\n')
-line[read - 1] = '\0';
-return (line);
+return NULL;
 }
-/**
-	* split_line - Split line into tokens
-	* @line: Line to split
-	* Return: Array of tokens
-	*/
-char **split_line(char *line)
+int check_command(char *command)
 {
-int bufsize = 64, position = 0;
-char **tokens = malloc(bufsize * sizeof(char *));
-char *token;
-if (!tokens)
+struct stat st;
+char *path_copy, *dir, *full_path;
+char *path = get_path_from_environ();
+if (!command || command[0] == '\0') return 0;
+if (strchr(command, '/'))
+return (stat(command, &st) == 0 && S_ISREG(st.st_mode));
+if (!path) return 0;
+path_copy = _strdup(path);
+if (!path_copy) return 0;
+dir = strtok(path_copy, ":");
+while (dir)
 {
-fprintf(stderr, "Allocation error\n");
-exit(EXIT_FAILURE);
+full_path = malloc(strlen(dir) + strlen(command) + 2);
+if (!full_path)
+{
+free(path_copy);
+return 0;
 }
-token = strtok(line, " \t\r\n");
-while (token != NULL)
+sprintf(full_path, "%s/%s", dir, command);
+if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode))
 {
-/* Add token only if not empty */
-if (strlen(token) > 0)
+free(full_path);
+free(path_copy);
+return 1;
+}
+free(full_path);
+dir = strtok(NULL, ":");
+}
+free(path_copy);
+return 0;
+}
+char *find_full_path(char *command)
 {
-tokens[position] = _strdup(token);
-if (!tokens[position])
+struct stat st;
+char *path_copy, *dir, *full_path;
+char *path = get_path_from_environ();
+if (!command || command[0] == '\0') return NULL;
+if (strchr(command, '/'))
+return (stat(command, &st) == 0 && S_ISREG(st.st_mode)) ? _strdup(command) : NULL;
+if (!path) return NULL;
+path_copy = _strdup(path);
+if (!path_copy) return NULL;
+dir = strtok(path_copy, ":");
+while (dir)
 {
-fprintf(stderr, "Allocation error\n");
-exit(EXIT_FAILURE);
-}
-position++;
-}
-if (position >= bufsize)
+full_path = malloc(strlen(dir) + strlen(command) + 2);
+if (!full_path)
 {
-bufsize += 64;
-tokens = realloc(tokens, bufsize * sizeof(char *));
-if (!tokens)
+free(path_copy);
+return NULL;
+}
+sprintf(full_path, "%s/%s", dir, command);
+if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode))
 {
-fprintf(stderr, "Allocation error\n");
-exit(EXIT_FAILURE);
+free(path_copy);
+return full_path;
 }
+free(full_path);
+dir = strtok(NULL, ":");
 }
-token = strtok(NULL, " \t\r\n");
+free(path_copy);
+return NULL;
 }
-tokens[position] = NULL;
-return (tokens);
+int execute(char **args)
+{
+pid_t pid;
+int status;
+char *full_path;
+if (!args || !args[0] || args[0][0] == '\0')
+return 1;
+if (!check_command(args[0]))
+{
+fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+return 127;  
+}
+full_path = find_full_path(args[0]);
+if (!full_path)
+{
+fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+return 127;
+}
+pid = fork();
+if (pid == 0)
+{
+execve(full_path, args, environ);
+fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+free(full_path);
+exit(127);
+}
+else if (pid < 0)
+{
+perror("fork");
+free(full_path);
+return 1;
+}
+else
+{
+waitpid(pid, &status, 0);
+free(full_path);
+}
+return 1;
 }
