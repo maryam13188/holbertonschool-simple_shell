@@ -1,46 +1,40 @@
 #include "shell.h"
 /**
-	* shell_loop - Main loop of the shell
+	* shell_loop - main shell loop
 	*/
 void shell_loop(void)
 {
 char *line = NULL;
 char **args = NULL;
-int status = 0;
-while (1)
+int status = 1;
+while (status)
 {
-/* Print prompt only in interactive mode */
 if (isatty(STDIN_FILENO))
 write(STDOUT_FILENO, "$ ", 2);
 line = read_line();
-if (line == NULL) /* EOF (Ctrl+D) */
-break;
-args = split_line(line);
-free(line);
-if (!args || !args[0])
+if (line == NULL)
 {
+/* Ctrl+D */
+if (isatty(STDIN_FILENO))
+write(STDOUT_FILENO, "\n", 1);
+break;
+}
+args = split_line(line);
+if (args == NULL || args[0] == NULL)
+{
+free(line);
 free_tokens(args);
 continue;
 }
-/* Handle exit built-in */
-if (_strcmp(args[0], "exit") == 0)
+/* 🔹 built-in: exit */
+if (strcmp(args[0], "exit") == 0)
 {
+free(line);
 free_tokens(args);
-break;
+exit(0);
 }
-/* Execute command */
 status = execute(args);
-/*
-	* IMPORTANT:
-	* In non-interactive mode, if command is not found,
-	* exit shell with status 127 (required by checker)
-	*/
-if (!isatty(STDIN_FILENO) && status == 127)
-{
-free_tokens(args);
-exit(127);
-}
+free(line);
 free_tokens(args);
 }
 }
-
