@@ -7,19 +7,23 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
-/* Function Prototypes */
-int is_whitespace(const char *str);
+/* ----------------- Core Shell ----------------- */
+void shell_loop(void);
+int execute(char **args);
+/* ----------------- Input / Tokenization ----------------- */
 char *read_line(void);
 char **split_line(char *line);
 void free_tokens(char **tokens);
-int execute(char **args);
-/* String Functions */
+/* ----------------- String Utilities ----------------- */
 int _strlen(char *s);
 char *_strdup(char *str);
-/* PATH Functions */
+int _strcmp(char *s1, char *s2);
+/* ----------------- PATH / Command ----------------- */
 char *get_path_from_environ(void);
 int check_command(char *command);
 char *find_full_path(char *command);
-/* Environment */
+/* ----------------- Utils ----------------- */
+void print_error(char *cmd);
+/* ----------------- Environment ----------------- */
 extern char **environ;
-#endif
+#endif /* SHELL_H */
