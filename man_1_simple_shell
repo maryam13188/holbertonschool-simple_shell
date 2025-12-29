@@ -1,128 +1,81 @@
 .TH HSH 1 "December 2025" "Simple Shell 1.0"
 .SH NAME
-hsh \- simple UNIX command interpreter
+hsh \- a simple UNIX command interpreter
 .SH SYNOPSIS
 .B hsh
 .RI [file]
 .SH DESCRIPTION
 .B hsh
-is a minimal UNIX command interpreter that reads commands from
-standard input or from a file and executes them. This educational
-project demonstrates core shell concepts including process creation,
-PATH resolution, and built-in command implementation.
+is a simple UNIX command interpreter written in C.
+It reads commands from standard input or from a file and executes
+them using system calls.
 .PP
-The shell is implemented across tasks 0.1 through 2.1, providing
-a complete basic shell experience with support for command arguments,
-operators, redirection, pipes, and environment management.
+In interactive mode, the shell displays a prompt and waits for
+user input. In non-interactive mode, commands are read from
+standard input without displaying a prompt.
+.PP
+This project demonstrates fundamental UNIX shell concepts such as
+process creation, command execution, and PATH resolution.
 .SH BUILT-IN COMMANDS
 .TP
-.B exit [n]
-Exit shell with status n (default 0).
+.B exit
+Exit the shell.
 .TP
 .B env
-Print environment variables.
-.TP
-.B cd [dir]
-Change directory (default $HOME).
-.TP
-.B setenv var [value]
-Set environment variable.
-.TP
-.B unsetenv var
-Remove environment variable.
-.TP
-.B alias [name[='value']]
-Handle command aliases.
-.SH PATH HANDLING
-Commands are searched in PATH directories. Commands containing '/'
-execute directly. If not found: "hsh: 1: command: not found"
-.SH OPERATORS
-.TP
-.B ;
-Execute commands sequentially.
-.TP
-.B &&
-Execute if previous command succeeds.
-.TP
-.B ||
-Execute if previous command fails.
-.TP
-.B |
-Pipe output between commands.
-.SH REDIRECTION
-.TP
-.B >
-Redirect stdout (overwrite).
-.TP
-.B >>
-Redirect stdout (append).
-.TP
-.B <
-Redirect stdin from file.
-.SH VARIABLES
-.TP
-.B $$
-Shell process ID.
-.TP
-.B $?
-Exit status of last command.
+Display the current environment variables.
+.SH COMMAND EXECUTION
+Commands are executed by creating a child process using
+.B fork
+and running the command with
+.B execve.
+The parent process waits for the child process to terminate.
+.SH PATH RESOLUTION
+If a command does not contain a '/', the shell searches for it
+in the directories listed in the PATH environment variable.
+If the command cannot be found, an error message is printed.
 .SH EXAMPLES
 .nf
-Interactive use:
+Interactive mode:
 $ ./hsh
-($) ls ; pwd
-($) ls | grep ".c"
-($) ls > output.txt
-($) cd /tmp && pwd
-($) setenv TEST value
-($) alias ll='ls -la'
+($) ls
+($) env
 ($) exit
 
-Non-interactive:
-$ echo "ls -la" | ./hsh
+Non-interactive mode:
+$ echo "ls" | ./hsh
 $ ./hsh script.sh
 .fi
 .SH EXIT STATUS
-Exit status of last command executed, or 1 on shell error.
-.SH ERRORS
-.TP
-.B "hsh: 1: command: not found"
-Command not found in PATH.
-.TP
-.B "hsh: line X: command: not found"
-Command not found in non-interactive mode.
+The shell returns the exit status of the last executed command.
 .SH ENVIRONMENT
 .TP
 .B PATH
-Colon-separated list of directories to search for commands.
-.TP
-.B HOME
-User home directory (used by cd).
+A colon-separated list of directories used to search for commands.
 .SH FILES
 .TP
 .I shell.h
-Header file with function prototypes.
+Header file containing function prototypes.
 .TP
 .I main.c
-Main loop and prompt display.
+Main entry point and shell loop.
 .TP
 .I shell.c
 Command execution and PATH handling.
 .TP
 .I helper_functions.c
-Input parsing and utilities.
-.SH NOTES
-This shell uses environ directly instead of getenv() for PATH
-handling, as required by the project specifications.
-.SH AUTHOR
+Utility functions for input parsing and helpers.
+.TP
+.I man_1_simple_shell
+Manual page for the hsh shell.
+.SH AUTHORS
 Reem Abdulhadi Alshehri, Maryam Alessa
 .SH PROJECT
 Holberton School Simple Shell Project
 .SH SEE ALSO
-.BR bash (1),
 .BR sh (1),
 .BR execve (2),
 .BR fork (2),
 .BR wait (2)
 .SH VERSION
 Simple Shell 1.0
+
