@@ -1,8 +1,5 @@
 #include "shell.h"
 
-/**
- * shell_loop - Main shell loop
- */
 void shell_loop(void)
 {
     char *line, **args;
@@ -21,6 +18,7 @@ void shell_loop(void)
             continue;
         }
 
+        /* Handle exit command directly to pass correct status */
         if (_strcmp(args[0], "exit") == 0)
         {
             free(line);
@@ -28,6 +26,7 @@ void shell_loop(void)
             exit(last_status);
         }
 
+        /* Execute command (handles env and other commands) */
         last_status = execute_command(args);
         
         free(line);

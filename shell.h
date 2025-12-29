@@ -21,5 +21,7 @@ void free_tokens(char **tokens);
 char *find_command_in_path(char *command);
 int execute_command(char **args);
 int check_command_exists(char *command);
-
+int execute_command(char **args);
+int is_builtin(char *command);
+void handle_builtin(char **args);
 #endif
