@@ -1,5 +1,8 @@
 #include "shell.h"
 
+/**
+ * shell_loop - Main shell loop
+ */
 void shell_loop(void)
 {
     char *line, **args;
@@ -25,7 +28,7 @@ void shell_loop(void)
             exit(last_status);
         }
 
-        last_status = execute_external(args);
+        last_status = execute_command(args);
         
         free(line);
         free_tokens(args);

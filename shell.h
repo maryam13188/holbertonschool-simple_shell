@@ -15,10 +15,11 @@ extern char **environ;
 void shell_loop(void);
 char *_strdup(char *str);
 int _strcmp(char *s1, char *s2);
-void print_error(char *cmd);
 char *read_line(void);
 char **split_line(char *line);
 void free_tokens(char **tokens);
-int execute_external(char **args);
+char *find_command_in_path(char *command);
+int execute_command(char **args);
+int check_command_exists(char *command);
 
 #endif

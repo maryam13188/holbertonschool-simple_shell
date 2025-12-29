@@ -1,6 +1,11 @@
 #include "shell.h"
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
-/* String utilities */
+/* String Utilities */
 char *_strdup(char *str)
 {
     char *dup;
@@ -17,36 +22,20 @@ int _strcmp(char *s1, char *s2)
     return *s1 - *s2;
 }
 
-void print_error(char *cmd)
-{
-    if (!cmd) return;
-    write(2, cmd, strlen(cmd));
-    write(2, ": not found\n", 12);
-}
-
-/* Input functions */
+/* Input / Tokenization */
 char *read_line(void)
 {
     char *line = NULL;
     size_t bufsize = 0;
-    ssize_t nread;
     
-    if (isatty(STDIN_FILENO))
-        write(STDOUT_FILENO, "$ ", 2);
-    
-    nread = getline(&line, &bufsize, stdin);
-    
-    if (nread == -1)
+    if (isatty(STDIN_FILENO)) write(STDOUT_FILENO, "$ ", 2);
+    if (getline(&line, &bufsize, stdin) == -1)
     {
-        if (isatty(STDIN_FILENO))
-            write(STDOUT_FILENO, "\n", 1);
+        if (isatty(STDIN_FILENO)) write(STDOUT_FILENO, "\n", 1);
         free(line);
         return NULL;
     }
-    
-    if (nread > 0 && line[nread - 1] == '\n')
-        line[nread - 1] = '\0';
-    
+    if (line[strlen(line)-1] == '\n') line[strlen(line)-1] = '\0';
     return line;
 }
 
@@ -57,28 +46,16 @@ char **split_line(char *line)
     char *token;
     
     if (!tokens) return NULL;
-    
     token = strtok(line, " \t\r\n");
     while (token)
     {
-        if (strlen(token) > 0)
-        {
-            tokens[i] = _strdup(token);
-            if (!tokens[i])
-            {
-                free_tokens(tokens);
-                return NULL;
-            }
-            i++;
-        }
-        
+        if (strlen(token) > 0) tokens[i++] = _strdup(token);
         if (i >= bufsize)
         {
             bufsize += 64;
             tokens = realloc(tokens, bufsize * sizeof(char *));
             if (!tokens) return NULL;
         }
-        
         token = strtok(NULL, " \t\r\n");
     }
     tokens[i] = NULL;
@@ -88,74 +65,135 @@ char **split_line(char *line)
 void free_tokens(char **tokens)
 {
     int i = 0;
-    
     if (!tokens) return;
-    
-    while (tokens[i])
-    {
-        free(tokens[i]);
-        i++;
-    }
-    
+    while (tokens[i]) free(tokens[i++]);
     free(tokens);
 }
 
-/* Command execution */
-int execute_external(char **args)
+/* PATH Handling */
+char *_getenv(const char *name)
+{
+    int i = 0;
+    size_t len;
+    if (!environ || !name) return NULL;
+    len = strlen(name);
+    while (environ[i])
+    {
+        if (strncmp(environ[i], name, len) == 0 && environ[i][len] == '=')
+            return (environ[i] + len + 1);
+        i++;
+    }
+    return NULL;
+}
+
+char *find_command_in_path(char *command)
+{
+    char *path, *path_copy, *dir, *full_path;
+    struct stat st;
+    
+    if (!command) return NULL;
+    if (strchr(command, '/'))
+    {
+        if (stat(command, &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR))
+            return _strdup(command);
+        return NULL;
+    }
+    
+    path = _getenv("PATH");
+    if (!path) return NULL;
+    
+    path_copy = _strdup(path);
+    if (!path_copy) return NULL;
+    
+    dir = strtok(path_copy, ":");
+    while (dir)
+    {
+        full_path = malloc(strlen(dir) + strlen(command) + 2);
+        if (!full_path)
+        {
+            free(path_copy);
+            return NULL;
+        }
+        sprintf(full_path, "%s/%s", dir, command);
+        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR))
+        {
+            free(path_copy);
+            return full_path;
+        }
+        free(full_path);
+        dir = strtok(NULL, ":");
+    }
+    free(path_copy);
+    return NULL;
+}
+
+int check_command_exists(char *command)
+{
+    struct stat st;
+    char *full_path;
+    
+    if (!command || command[0] == '\0') return 0;
+    if (strchr(command, '/'))
+        return (stat(command, &st) == 0 && S_ISREG(st.st_mode) && (st.st_mode & S_IXUSR));
+    
+    full_path = find_command_in_path(command);
+    if (full_path)
+    {
+        free(full_path);
+        return 1;
+    }
+    return 0;
+}
+
+/* Command Execution */
+int execute_command(char **args)
 {
     pid_t pid;
     int status;
+    char *full_path;
     struct stat st;
-
-    if (!args || !args[0])
-        return (1);
-
-    /* Check if command exists */
-    if (stat(args[0], &st) == -1)
+    
+    if (!args || !args[0]) return 1;
+    if (!check_command_exists(args[0]))
     {
-        print_error(args[0]);
-        return (127);
+        fprintf(stderr, "%s: command not found\n", args[0]);
+        return 127;
     }
-
-    /* Check if it's a regular file and executable */
-    if (!S_ISREG(st.st_mode))
+    
+    if (strchr(args[0], '/'))
+        full_path = _strdup(args[0]);
+    else
+        full_path = find_command_in_path(args[0]);
+    
+    if (!full_path || stat(full_path, &st) == -1 || 
+        !S_ISREG(st.st_mode) || !(st.st_mode & S_IXUSR))
     {
-        print_error(args[0]);
-        return (126);
+        if (full_path) free(full_path);
+        fprintf(stderr, "%s: command not found\n", args[0]);
+        return 127;
     }
-
-    if (!(st.st_mode & S_IXUSR))
-    {
-        print_error(args[0]);
-        return (126);
-    }
-
+    
     pid = fork();
     if (pid == 0)
     {
-        /* Child process */
-        if (execve(args[0], args, environ) == -1)
+        if (execve(full_path, args, environ) == -1)
         {
             perror(args[0]);
+            free(full_path);
             exit(127);
         }
     }
     else if (pid < 0)
     {
-        /* Fork failed */
         perror("fork");
-        return (1);
+        free(full_path);
+        return 1;
     }
     else
     {
-        /* Parent process */
         waitpid(pid, &status, 0);
-        
-        if (WIFEXITED(status))
-            return (WEXITSTATUS(status));
-        else
-            return (1);
+        free(full_path);
+        return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
     }
-    
-    return (1);
+    return 1;
 }
