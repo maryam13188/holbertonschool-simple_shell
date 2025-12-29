@@ -119,7 +119,7 @@ Only approved system calls and functions are used, such as:
 This project was developed and tested by:
 
 - **Reem Abdulhadi Alshehri**
-- **Maryam Alessa 13** 
+- **Maryam Alessa ** 
 
 
 
