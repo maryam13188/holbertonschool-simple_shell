@@ -10,16 +10,17 @@
 
 extern char **environ;
 
-/* تغيير void إلى int */
-int shell_loop(void);  /* كان void shell_loop(void) */
+void shell_loop(void);
 char *_strdup(char *str);
 int _strcmp(char *s1, char *s2);
 char *read_line(void);
 char **split_line(char *line);
-void free_tokens(char **tokens);
+void free_tokens(char **t);
 char *_getenv(const char *name);
-char *find_command_in_path(char *command);
-int check_command_exists(char *command);
-int execute_command(char **args, int line_num);
+char *find_command_in_path(char *cmd);
+int check_command_exists(char *cmd);
+int is_builtin(char *cmd);
+void handle_builtin(char **args);
+int execute_command(char **args);
 
 #endif
