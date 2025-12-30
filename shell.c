@@ -1,90 +1,67 @@
 #include "shell.h"
 
 /**
- * read_line - Reads a line from stdin
- * Return: The line read (without newline), NULL on EOF
- */
-char *read_line(void)
-{
-    char *line = NULL;
-    size_t bufsize = 0;
-    ssize_t nread;
-
-    printf(":) ");
-    nread = getline(&line, &bufsize, stdin);
-
-    if (nread == -1)
-    {
-        free(line);
-        return (NULL);
-    }
-
-    /* Remove newline */
-    if (nread > 0 && line[nread - 1] == '\n')
-        line[nread - 1] = '\0';
-
-    return (line);
-}
-
-/**
- * parse_line - Parses a line into tokens
- * @line: Line to parse
- * Return: Array of tokens, NULL-terminated
- */
-char **parse_line(char *line)
-{
-    char **args;
-
-    if (!line || line[0] == '\0')
-        return (NULL);
-
-    args = split_string(line, " \t\r\n\a");
-    if (!args)
-        return (NULL);
-
-    /* Handle empty command after splitting */
-    if (!args[0])
-    {
-        free_tokens(args);
-        return (NULL);
-    }
-
-    return (args);
-}
-
-/**
- * shell_loop - Main shell loop
+ * shell_loop - main shell loop
  */
 void shell_loop(void)
 {
-    char *line;
-    char **args;
+	char *line = NULL, *cmd_path;
+	size_t len = 0;
+	ssize_t read;
+	char **args;
+	pid_t pid;
+	int status;
 
-    while (1)
-    {
-        line = read_line();
-        if (!line)
-        {
-            printf("\n");
-            break;
-        }
+	while (1)
+	{
+		write(STDOUT_FILENO, "$ ", 2);
 
-        args = parse_line(line);
-        if (!args)
-        {
-            free(line);
-            continue;
-        }
+		read = getline(&line, &len, stdin);
+		if (read == -1)
+		{
+			write(STDOUT_FILENO, "\n", 1);
+			break;
+		}
 
-        if (args[0])
-        {
-            if (is_builtin(args))
-                handle_builtin(args);
-            else
-                handle_path_and_execute(args);
-        }
+		args = split_line(line);
+		if (!args[0])
+		{
+			free(args);
+			continue;
+		}
 
-        free_tokens(args);
-        free(line);
-    }
+		cmd_path = find_path(args[0]);
+		if (!cmd_path)
+		{
+			write(STDERR_FILENO, args[0], strlen(args[0]));
+			write(STDERR_FILENO, ": command not found\n", 20);
+			free(args);
+			continue; /* ❗ no fork */
+		}
+
+		pid = fork();
+		if (pid == 0)
+		{
+			execve(cmd_path, args, environ);
+			perror("execve");
+			exit(EXIT_FAILURE);
+		}
+		else
+			wait(&status);
+
+		free(cmd_path);
+		free(args);
+	}
+	free(line);
 }
+
+/**
+ * main - entry point
+ * Return: 0
+ */
+int main(void)
+{
+	shell_loop();
+	return (0);
+}
+
