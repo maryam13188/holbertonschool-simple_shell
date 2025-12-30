@@ -1,81 +1,110 @@
-.TH HSH 1 "December 2025" "Simple Shell 1.0"
+.TH HSH 1 "December 2025" "Simple Shell 1.0" "User Commands"
 .SH NAME
 hsh \- a simple UNIX command interpreter
 .SH SYNOPSIS
 .B hsh
-.RI [file]
+.RI [ file ]
 .SH DESCRIPTION
 .B hsh
-is a simple UNIX command interpreter written in C.
-It reads commands from standard input or from a file and executes
-them using system calls.
+is a minimal UNIX command interpreter written in C. It reads commands
+from standard input or from a file and executes them using system calls.
+
 .PP
-In interactive mode, the shell displays a prompt and waits for
-user input. In non-interactive mode, commands are read from
+When executed in interactive mode, the shell displays a prompt and
+waits for user input. In non-interactive mode, commands are read from
 standard input without displaying a prompt.
+
 .PP
-This project demonstrates fundamental UNIX shell concepts such as
-process creation, command execution, and PATH resolution.
+This project is an educational implementation designed to demonstrate
+core UNIX shell concepts such as process creation, command execution,
+environment handling, and PATH resolution.
 .SH BUILT-IN COMMANDS
 .TP
 .B exit
-Exit the shell.
+Exit the shell and return the status of the last executed command.
 .TP
 .B env
-Display the current environment variables.
+Print the current environment variables to standard output.
 .SH COMMAND EXECUTION
-Commands are executed by creating a child process using
-.B fork
+External commands are executed by creating a child process using
+.BR fork (2)
 and running the command with
-.B execve.
-The parent process waits for the child process to terminate.
+.BR execve (2).
+The parent process waits for the child process to terminate using
+.BR wait (2).
 .SH PATH RESOLUTION
-If a command does not contain a '/', the shell searches for it
-in the directories listed in the PATH environment variable.
-If the command cannot be found, an error message is printed.
+If a command does not contain a slash (\fB/\fP), the shell searches for
+the executable in the directories listed in the
+.B PATH
+environment variable.
+
+.PP
+If the command cannot be found, an error message is printed and the
+shell continues execution.
+.SH EXIT STATUS
+The shell returns the exit status of the last executed command. If an
+error occurs, a non-zero status is returned.
+.SH EXIT CODES
+.TP
+.B 0
+Successful execution.
+.TP
+.B 1
+General error.
+.SH ENVIRONMENT
+.TP
+.B PATH
+A colon-separated list of directories in which the shell searches for
+executable commands.
+.SH FILES
+.TP
+.I shell.h
+Header file containing structure definitions and function prototypes.
+.TP
+.I main.c
+Program entry point and main shell loop.
+.TP
+.I shell.c
+Core shell logic including command execution and PATH handling.
+.TP
+.I helper_functions.c
+Utility functions for input parsing and helper routines.
+.TP
+.I man_1_simple_shell
+Manual page for the
+.B hsh
+shell.
 .SH EXAMPLES
-.nf
 Interactive mode:
+.PP
+.nf
 $ ./hsh
 ($) ls
 ($) env
 ($) exit
+.fi
 
 Non-interactive mode:
+.PP
+.nf
 $ echo "ls" | ./hsh
 $ ./hsh script.sh
 .fi
-.SH EXIT STATUS
-The shell returns the exit status of the last executed command.
-.SH ENVIRONMENT
-.TP
-.B PATH
-A colon-separated list of directories used to search for commands.
-.SH FILES
-.TP
-.I shell.h
-Header file containing function prototypes.
-.TP
-.I main.c
-Main entry point and shell loop.
-.TP
-.I shell.c
-Command execution and PATH handling.
-.TP
-.I helper_functions.c
-Utility functions for input parsing and helpers.
-.TP
-.I man_1_simple_shell
-Manual page for the hsh shell.
+.SH LIMITATIONS
+This shell implementation supports basic command execution and a
+limited set of built-in commands. Advanced features such as job
+control, command history, pipes, and signal handling are not
+implemented.
 .SH AUTHORS
-Reem Abdulhadi Alshehri, Maryam Alessa
+Reem Abdulhadi Alshehri  
+Maryam Alessa
 .SH PROJECT
 Holberton School Simple Shell Project
 .SH SEE ALSO
 .BR sh (1),
 .BR execve (2),
 .BR fork (2),
-.BR wait (2)
+.BR wait (2),
+.BR environ (7)
 .SH VERSION
 Simple Shell 1.0
-
