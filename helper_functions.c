@@ -1,131 +1,174 @@
 #include "shell.h"
-#include <sys/stat.h>
 
-/* ================= PATH Helpers ================= */
+/* Declare environ */
+extern char **environ;
 
-char *get_path_from_environ(void)
+/**
+ * get_path - Finds full path of command
+ * @cmd: Command entered
+ * Return: Full path or NULL
+ */
+char *get_path(char *cmd)
 {
-    extern char **environ;
-    int i = 0;
-    while (environ[i])
-    {
-        if (strncmp(environ[i], "PATH=", 5) == 0)
-            return (environ[i] + 5);
-        i++;
-    }
-    return NULL;
-}
-
-int check_command(char *command)
-{
+    char *path, *dir, *full;
     struct stat st;
-    char *path = get_path_from_environ();
-    char *path_copy, *dir, *full_path;
+    int i;
 
-    if (!command || command[0] == '\0')
-        return 0;
+    if (!cmd) return (NULL);
 
-    if (strchr(command, '/'))
-        return (stat(command, &st) == 0 && S_ISREG(st.st_mode));
+    for (i = 0; cmd[i]; i++)
+        if (cmd[i] == '/')
+            return (stat(cmd, &st) == 0 ? strdup(cmd) : NULL);
 
-    if (!path)
-        return 0;
+    path = getenv("PATH");
+    if (!path) return (NULL);
 
-    path_copy = _strdup(path);
-    dir = strtok(path_copy, ":");
+    path = strdup(path);
+    dir = strtok(path, ":");
     while (dir)
     {
-        full_path = malloc(strlen(dir) + strlen(command) + 2);
-        sprintf(full_path, "%s/%s", dir, command);
-        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode))
+        full = malloc(strlen(dir) + strlen(cmd) + 2);
+        if (!full) { free(path); return (NULL); }
+        sprintf(full, "%s/%s", dir, cmd);
+
+        if (stat(full, &st) == 0)
         {
-            free(full_path);
-            free(path_copy);
-            return 1;
+            free(path);
+            return (full);
         }
-        free(full_path);
+        free(full);
         dir = strtok(NULL, ":");
     }
-    free(path_copy);
-    return 0;
+    free(path);
+    return (NULL);
 }
 
-char *find_full_path(char *command)
+/**
+ * split_string - Splits string into tokens
+ * @str: String to split
+ * @delim: Delimiters
+ * Return: Array of tokens
+ */
+char **split_string(char *str, const char *delim)
 {
-    struct stat st;
-    char *path = get_path_from_environ();
-    char *path_copy, *dir, *full_path;
+    char **tokens = NULL, *token, *copy;
+    int i = 0, count = 0;
 
-    if (!command || command[0] == '\0')
-        return NULL;
+    if (!str || !delim) return (NULL);
 
-    if (strchr(command, '/'))
-        return (stat(command, &st) == 0 && S_ISREG(st.st_mode)) ? _strdup(command) : NULL;
+    copy = strdup(str);
+    token = strtok(copy, delim);
+    while (token) { count++; token = strtok(NULL, delim); }
+    free(copy);
 
-    if (!path)
-        return NULL;
+    tokens = malloc(sizeof(char *) * (count + 1));
+    if (!tokens) return (NULL);
 
-    path_copy = _strdup(path);
-    dir = strtok(path_copy, ":");
-    while (dir)
+    copy = strdup(str);
+    token = strtok(copy, delim);
+    while (token)
     {
-        full_path = malloc(strlen(dir) + strlen(command) + 2);
-        sprintf(full_path, "%s/%s", dir, command);
-        if (stat(full_path, &st) == 0 && S_ISREG(st.st_mode))
-        {
-            free(path_copy);
-            return full_path;
-        }
-        free(full_path);
-        dir = strtok(NULL, ":");
+        tokens[i++] = strdup(token);
+        token = strtok(NULL, delim);
     }
-    free(path_copy);
-    return NULL;
+    tokens[i] = NULL;
+    free(copy);
+    return (tokens);
 }
 
-/* ================= Execute ================= */
+/**
+ * free_tokens - Frees tokens array
+ * @tokens: Array to free
+ */
+void free_tokens(char **tokens)
+{
+    int i;
+    if (!tokens) return;
+    for (i = 0; tokens[i]; i++) free(tokens[i]);
+    free(tokens);
+}
 
-int execute(char **args)
+/**
+ * execute_command - Executes command
+ * @args: Command and args
+ * Return: 1 on success, 0 on failure
+ */
+int execute_command(char **args)
 {
     pid_t pid;
     int status;
-    char *full_path;
 
-    if (!args || !args[0])
-        return 1;
-
-    if (!check_command(args[0]))
-    {
-        fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
-        return 127;
-    }
-
-    full_path = find_full_path(args[0]);
-    if (!full_path)
-        return 127;
+    if (!args || !args[0]) return (0);
 
     pid = fork();
-    if (pid == 0) /* Child */
+    if (pid == -1) { perror("fork"); return (0); }
+    if (pid == 0)
     {
-        if (execve(full_path, args, environ) == -1)
+        if (execve(args[0], args, environ) == -1)
         {
-            perror("execve");
-            free(full_path);
-            exit(126);
+            perror(args[0]);
+            exit(EXIT_FAILURE);
         }
     }
-    else if (pid < 0)
-    {
-        perror("fork");
-        free(full_path);
-        return 1;
-    }
-    else /* Parent */
-    {
-        waitpid(pid, &status, 0);
-        free(full_path);
-        return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
-    }
-    return 1;
+    waitpid(pid, &status, 0);
+    return (1);
 }
 
+/**
+ * handle_path_and_execute - Handles PATH and executes
+ * @args: Command and args
+ */
+void handle_path_and_execute(char **args)
+{
+    char *full_path;
+    struct stat st;
+
+    if (!args || !args[0]) return;
+
+    if (strchr(args[0], '/'))
+    {
+        if (stat(args[0], &st) == 0)
+            execute_command(args);
+        else
+            fprintf(stderr, "%s: command not found\n", args[0]);
+    }
+    else
+    {
+        full_path = get_path(args[0]);
+        if (full_path)
+        {
+            free(args[0]);
+            args[0] = full_path;
+            execute_command(args);
+        }
+        else
+            fprintf(stderr, "%s: command not found\n", args[0]);
+    }
+}
+
+/**
+ * is_builtin - Checks if built-in command
+ * @args: Command and args
+ * Return: 1 if built-in, 0 otherwise
+ */
+int is_builtin(char **args)
+{
+    if (!args || !args[0]) return (0);
+    return (strcmp(args[0], "exit") == 0 || strcmp(args[0], "env") == 0);
+}
+
+/**
+ * handle_builtin - Handles built-in commands
+ * @args: Command and args
+ */
+void handle_builtin(char **args)
+{
+    char **env;
+
+    if (!args || !args[0]) return;
+
+    if (strcmp(args[0], "exit") == 0)
+        exit(EXIT_SUCCESS);
+    else if (strcmp(args[0], "env") == 0)
+        for (env = environ; *env; env++) printf("%s\n", *env);
+}

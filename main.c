@@ -3,5 +3,5 @@
 int main(void)
 {
     shell_loop();
-    return 0;
+    return (EXIT_SUCCESS);
 }
