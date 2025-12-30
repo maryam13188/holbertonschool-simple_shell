@@ -1,27 +1,33 @@
 #include "shell.h"
 
-int execute_cmd(char **argv)
+void shell_loop(void)
 {
-    pid_t pid;
-    char *cmd_path;
+    char *line, **args;
+    int last_status = 0;
 
-    cmd_path = get_path(argv[0]);
-    if (!cmd_path)
+    while (1)
     {
-        print_error(argv[0]);
-        return (127);
-    }
+        line = read_line();
+        if (!line) break;
 
-    pid = fork();
-    if (pid == 0)
-    {
-        execve(cmd_path, argv, environ);
-        exit(1);
-    }
-    else
-        wait(NULL);
+        args = split_line(line);
+        if (!args || !args[0])
+        {
+            free(line);
+            free_tokens(args);
+            continue;
+        }
 
-    free(cmd_path);
-    return (0);
+        if (_strcmp(args[0], "exit") == 0)
+        {
+            free(line);
+            free_tokens(args);
+            exit(last_status);
+        }
+
+        last_status = execute_command(args);
+        
+        free(line);
+        free_tokens(args);
+    }
 }
-
