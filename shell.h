@@ -11,13 +11,17 @@
 
 extern char **environ;
 
-/* shell.c */
-void shell_loop(void);
-
-/* helper_functions.c */
-char *_getenv(char *name);
-char *find_path(char *command);
+/* Functions */
+char *read_line(void);
 char **split_line(char *line);
+int execute(char **args);
+void free_args(char **args);
+int is_whitespace(const char *str);
+int handle_builtin(char **args);
+void print_environment(void);
+char *_strdup(const char *str);
+int _strcmp(const char *s1, const char *s2);
+char *find_command_in_path(char *command);
+int command_exists(char *command);
 
 #endif
-
