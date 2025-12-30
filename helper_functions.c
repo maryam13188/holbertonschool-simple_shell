@@ -1,6 +1,5 @@
 #include "shell.h"
 
-/* ===================== READ LINE ===================== */
 char *read_line(void)
 {
     char *line = NULL;
@@ -14,13 +13,13 @@ char *read_line(void)
     return (line);
 }
 
-/* ===================== TOKENIZE ===================== */
 char **tokenize(char *line)
 {
-    int bufsize = 64, i = 0;
-    char **tokens = malloc(sizeof(char *) * bufsize);
+    char **tokens;
     char *token;
+    int i = 0;
 
+    tokens = malloc(sizeof(char *) * 64);
     if (!tokens)
         return (NULL);
 
@@ -31,73 +30,48 @@ char **tokenize(char *line)
         token = strtok(NULL, " \t\n");
     }
     tokens[i] = NULL;
+
     return (tokens);
 }
 
-/* ===================== WHITESPACE CHECK ===================== */
-int is_whitespace(char *line)
+char *get_path(char *cmd)
 {
-    int i = 0;
+    char *path, *path_copy, *dir, *full_path;
+    struct stat st;
 
-    while (line[i])
+    if (cmd[0] == '/' && stat(cmd, &st) == 0)
+        return (strdup(cmd));
+
+    path = getenv("PATH");
+    if (!path)
+        return (NULL);
+
+    path_copy = strdup(path);
+    dir = strtok(path_copy, ":");
+
+    while (dir)
     {
-        if (line[i] != ' ' && line[i] != '\n' && line[i] != '\t')
-            return (0);
-        i++;
-    }
-    return (1);
-}
+        full_path = malloc(strlen(dir) + strlen(cmd) + 2);
+        sprintf(full_path, "%s/%s", dir, cmd);
 
-/* ===================== FREE ARGS ===================== */
-void free_args(char **args)
-{
-    free(args);
-}
-
-/* ===================== BUILTINS ===================== */
-int handle_builtin(char **args)
-{
-    int i;
-
-    if (strcmp(args[0], "exit") == 0)
-        exit(0);
-
-    if (strcmp(args[0], "env") == 0)
-    {
-        for (i = 0; environ[i]; i++)
+        if (stat(full_path, &st) == 0)
         {
-            write(STDOUT_FILENO, environ[i], strlen(environ[i]));
-            write(STDOUT_FILENO, "\n", 1);
+            free(path_copy);
+            return (full_path);
         }
-        return (1);
+
+        free(full_path);
+        dir = strtok(NULL, ":");
     }
-    return (0);
+
+    free(path_copy);
+    return (NULL);
 }
 
-/* ===================== EXECUTE ===================== */
-int execute(char **args)
+void print_error(char *cmd)
 {
-    pid_t pid;
-    int status;
-
-    pid = fork();
-    if (pid == 0)
-    {
-        if (execve(args[0], args, environ) == -1)
-        {
-            perror(args[0]);
-            exit(EXIT_FAILURE);
-        }
-    }
-    else if (pid < 0)
-    {
-        perror("fork");
-    }
-    else
-    {
-        wait(&status);
-    }
-
-    return (1);
+    write(STDERR_FILENO, "shell: 1: ", 10);
+    write(STDERR_FILENO, cmd, strlen(cmd));
+    write(STDERR_FILENO, ": not found\n", 12);
 }
 

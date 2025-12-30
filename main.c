@@ -2,25 +2,30 @@
 
 int main(void)
 {
-    char *line, **args;
-    int status = 1;
-    
-    while (status)
+    char *line;
+    char **argv;
+
+    while (1)
     {
-        if (isatty(STDIN_FILENO)) printf(":) ");
+        write(STDOUT_FILENO, ":) ", 3);
+
         line = read_line();
         if (!line)
-        {
-            if (isatty(STDIN_FILENO)) printf("\n");
             break;
+
+        argv = tokenize(line);
+        if (!argv || !argv[0])
+        {
+            free(line);
+            free(argv);
+            continue;
         }
-        if (is_whitespace(line)) { free(line); continue; }
-        args = split_line(line);
-        if (!args || !args[0]) { free(line); if (args) free_args(args); continue; }
-        if (handle_builtin(args)) { free(line); free_args(args); continue; }
-        status = execute(args);
+
+        execute_cmd(argv);
+
         free(line);
-        free_args(args);
+        free(argv);
     }
     return (0);
 }
+
