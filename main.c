@@ -2,6 +2,6 @@
 
 int main(void)
 {
-    shell_loop();
-    return 0;
+    int exit_status = shell_loop();  /* احفظ exit status */
+    return exit_status;
 }

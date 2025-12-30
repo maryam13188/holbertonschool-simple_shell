@@ -1,20 +1,26 @@
 #include "shell.h"
 
-void shell_loop(void)
+int shell_loop(void)  
 {
     char *line, **args;
     int last_status = 0;
+    int line_count = 1;
 
     while (1)
     {
         line = read_line();
-        if (!line) break;
+        if (!line) 
+        {
+            
+            return last_status;  
+        }
 
         args = split_line(line);
         if (!args || !args[0])
         {
             free(line);
             free_tokens(args);
+            line_count++;
             continue;
         }
 
@@ -22,12 +28,15 @@ void shell_loop(void)
         {
             free(line);
             free_tokens(args);
-            exit(last_status);
+            exit(last_status);  
         }
 
-        last_status = execute_command(args);
+        last_status = execute_command(args, line_count);
         
         free(line);
         free_tokens(args);
+        line_count++;
     }
+    
+    return last_status;  
 }

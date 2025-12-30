@@ -100,7 +100,7 @@ char *find_command_in_path(char *command)
     }
     
     path = _getenv("PATH");
-    if (!path || path[0] == '\0') return NULL;  /* Check for empty PATH */
+    if (!path || path[0] == '\0') return NULL;
     
     path_copy = _strdup(path);
     if (!path_copy) return NULL;
@@ -145,8 +145,8 @@ int check_command_exists(char *command)
     return 0;
 }
 
-/* Command Execution - UPDATED FOR CHECKER FORMAT */
-int execute_command(char **args)
+/* Command Execution with line number */
+int execute_command(char **args, int line_num)
 {
     pid_t pid;
     int status;
@@ -158,8 +158,7 @@ int execute_command(char **args)
     /* Check if command exists BEFORE forking */
     if (!check_command_exists(args[0]))
     {
-        /* CHECKER WANTS: ./hsh: 1: ls: not found */
-        fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+        fprintf(stderr, "./hsh: %d: %s: not found\n", line_num, args[0]);
         return 127;
     }
     
@@ -172,8 +171,7 @@ int execute_command(char **args)
         !S_ISREG(st.st_mode) || !(st.st_mode & S_IXUSR))
     {
         if (full_path) free(full_path);
-        /* CHECKER WANTS: ./hsh: 1: ls: not found */
-        fprintf(stderr, "./hsh: 1: %s: not found\n", args[0]);
+        fprintf(stderr, "./hsh: %d: %s: not found\n", line_num, args[0]);
         return 127;
     }
     
