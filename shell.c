@@ -20,7 +20,7 @@ char *read_line(void)
     }
 
     /* Remove newline */
-    if (line[nread - 1] == '\n')
+    if (nread > 0 && line[nread - 1] == '\n')
         line[nread - 1] = '\0';
 
     return (line);
@@ -33,7 +33,23 @@ char *read_line(void)
  */
 char **parse_line(char *line)
 {
-    return split_string(line, " \t\r\n\a");
+    char **args;
+
+    if (!line || line[0] == '\0')
+        return (NULL);
+
+    args = split_string(line, " \t\r\n\a");
+    if (!args)
+        return (NULL);
+
+    /* Handle empty command after splitting */
+    if (!args[0])
+    {
+        free_tokens(args);
+        return (NULL);
+    }
+
+    return (args);
 }
 
 /**
@@ -43,13 +59,15 @@ void shell_loop(void)
 {
     char *line;
     char **args;
-    int status = 1;
 
-    while (status)
+    while (1)
     {
         line = read_line();
         if (!line)
+        {
+            printf("\n");
             break;
+        }
 
         args = parse_line(line);
         if (!args)
@@ -69,6 +87,4 @@ void shell_loop(void)
         free_tokens(args);
         free(line);
     }
-
-    printf("\n");
 }
